@@ -6,25 +6,13 @@ import (
 	"encoding/json"
 	"github.com/gorilla/mux"
 	"strconv"
-	"gopkg.in/mgo.v2"
-	"log"
+	"withhold"
 )
-
-type Rate struct {
-	Rate float64 `bson:"rate"`
-}
 
 func main() {
 	fmt.Println("Started")
 
 	router := mux.NewRouter().StrictSlash(true)
-
-	session, err := mgo.Dial("127.0.0.1:27017")
-	if err != nil {
-		log.Fatal(err)
-		return
-	}
-	defer session.Close()
 
 	router.HandleFunc("/withold/amount/{amount}", func(w http.ResponseWriter, r *http.Request) {
 
@@ -33,21 +21,29 @@ func main() {
 			return
 		}
 
-		vars := mux.Vars(r)
-		amount, _ := strconv.ParseFloat(vars["amount"], 64)
+		amount := ParseAmount(r)
 
-		withHold := Rate{}
+		b := PrepareResponseBody(withhold.NewWithHolding().CalculateWithHolding(amount))
 
-		collection := session.DB("taxes").C("withold")
-		collection.Find(nil).One(&withHold)
-
-
-		b, _ := json.Marshal(map[string]float64{"value": amount* withHold.Rate})
-
-		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(b))
+		WriteResponse(w, b)
 	})
 
 	http.ListenAndServe(":3333", router)
 
+}
+
+func WriteResponse(w http.ResponseWriter, b []byte) {
+	w.Header().Set("Content-Type", "application/json")
+	w.Write([]byte(b))
+}
+
+func PrepareResponseBody(calculatedWithHolding float64) []byte {
+	b, _ := json.Marshal(map[string]float64{"value": calculatedWithHolding})
+	return b
+}
+
+func ParseAmount(r *http.Request) float64 {
+	vars := mux.Vars(r)
+	amount, _ := strconv.ParseFloat(vars["amount"], 64)
+	return amount
 }
