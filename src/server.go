@@ -23,7 +23,7 @@ func main() {
 
 		amount := ParseAmount(r)
 
-		b := PrepareResponseBody(withhold.NewWithHolding().CalculateWithHolding(amount))
+		b := PrepareResponseBody(withhold.NewController().ForAmount(amount))
 
 		WriteResponse(w, b)
 	})
